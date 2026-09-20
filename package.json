@@ -1,0 +1,47 @@
+{
+  "name": "@zkbytes/sdk",
+  "version": "0.1.0",
+  "description": "Browser and Node.js client SDK for zkbytes encrypted storage",
+  "type": "module",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "browser:serve": "vite --host 127.0.0.1",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "packageManager": "pnpm@11.27.0+sha512.ad12821463bb143295f1fa3ecde77a6b9b97a7990386da800ff57bffc3964dc64b7b1c7559d5dbe5c337aea659ed9c8937d4370bd198ca2009bc6fa0249808e7",
+  "publishConfig": {
+    "access": "public"
+  },
+  "dependencies": {
+    "@hpke/core": "1.9.0",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
+    "canonicalize": "5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "26.6.1",
+    "hpke": "1.1.7",
+    "typescript": "7.0.2",
+    "vite": "8.3.0",
+    "vitest": "5.0.1"
+  }
+}
