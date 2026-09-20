@@ -2,6 +2,15 @@
   "name": "@zkbytes/sdk",
   "version": "0.1.0",
   "description": "Browser and Node.js client SDK for zkbytes encrypted storage",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/landofcash/zkbytes-sdk.git"
+  },
+  "homepage": "https://github.com/landofcash/zkbytes-sdk#readme",
+  "bugs": {
+    "url": "https://github.com/landofcash/zkbytes-sdk/issues"
+  },
   "type": "module",
   "sideEffects": false,
   "files": [
