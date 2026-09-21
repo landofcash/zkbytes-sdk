@@ -32,7 +32,8 @@ export class ZkbytesClient {
   public constructor(options: ZkbytesClientOptions) {
     this.apiOrigin = requireOrigin(options.apiOrigin, "apiOrigin");
     this.downloadOrigin = requireOrigin(options.downloadOrigin, "downloadOrigin");
-    this.fetchImplementation = options.fetch ?? globalThis.fetch;
+    // Browser fetch requires the global receiver when invoked as a client method.
+    this.fetchImplementation = options.fetch ?? globalThis.fetch?.bind(globalThis);
     if (!this.fetchImplementation) {
       throw new ZkbytesError("INVALID_ARGUMENT", "A Fetch API implementation is required.");
     }

@@ -1,6 +1,6 @@
 {
   "name": "@zkbytes/sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Browser and Node.js client SDK for zkbytes encrypted storage",
   "license": "MIT",
   "repository": {

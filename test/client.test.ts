@@ -31,6 +31,40 @@ beforeAll(async () => {
 });
 
 describe("zkbytes HTTP client", () => {
+  it("preserves the global receiver for default browser fetch during recovery", async () => {
+    const browserFetch = vi.fn(function (this: unknown) {
+      if (this !== globalThis) throw new TypeError("Illegal invocation");
+      return Promise.resolve(jsonResponse({ seed, state: "pending" }, 202));
+    });
+    vi.stubGlobal("fetch", browserFetch);
+    try {
+      const client = new ZkbytesClient({ apiOrigin, downloadOrigin });
+      await expect(client.recoverUpload(seed, prepared.item.creator)).resolves.toEqual({
+        outcome: "pending",
+        status: { seed, state: "pending" },
+      });
+      expect(browserFetch).toHaveBeenCalledExactlyOnceWith(
+        `${apiOrigin}/v1/objects/${seed}/status`, { method: "GET" },
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("supports a custom fetch when global fetch is unavailable", async () => {
+    vi.stubGlobal("fetch", undefined);
+    try {
+      const fetchMock = vi.fn(async () => jsonResponse({ seed, state: "pending" }, 202));
+      await expect(createClient(fetchMock).getStatus(seed)).resolves.toEqual({ seed, state: "pending" });
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(() => new ZkbytesClient({ apiOrigin, downloadOrigin })).toThrow(
+        "A Fetch API implementation is required.",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("uploads once and validates every completed-response binding", async () => {
     const fetchMock = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => {
       expect(init?.method).toBe("POST");
