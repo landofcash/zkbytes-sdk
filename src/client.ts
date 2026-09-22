@@ -225,7 +225,7 @@ function parseUploadCompleted(value: unknown): UploadCompleted {
     invalidResponse();
   }
   decodeSeed(value.seed);
-  canonicalTimestamp(value.createdAt);
+  validateServerTimestamp(value.createdAt);
   canonicalTimestamp(value.expiresAt);
   return value as unknown as UploadCompleted;
 }
@@ -237,7 +237,7 @@ function parseStatus(value: unknown, seed: string, statusCode: number): ObjectSt
   }
   if (value.state === "active" && hasExactKeys(value, ["seed", "state", "createdAt", "expiresAt"]) &&
       typeof value.createdAt === "string" && typeof value.expiresAt === "string") {
-    canonicalTimestamp(value.createdAt);
+    validateServerTimestamp(value.createdAt);
     canonicalTimestamp(value.expiresAt);
     return { seed, state: "active", createdAt: value.createdAt, expiresAt: value.expiresAt };
   }
@@ -248,7 +248,7 @@ function parseStatus(value: unknown, seed: string, statusCode: number): ObjectSt
       isRecord(value.deletedBy) && hasExactKeys(value.deletedBy, ["publicKey"]) &&
       typeof value.deletedBy.publicKey === "string" && typeof value.deletedAt === "string") {
     validateSigningDescriptor({ publicKey: value.deletedBy.publicKey, signatureScheme: SIGNATURE_SCHEME });
-    canonicalTimestamp(value.deletedAt);
+    validateServerTimestamp(value.deletedAt);
     return { seed, state: "deleted", deletedBy: { publicKey: value.deletedBy.publicKey }, deletedAt: value.deletedAt };
   }
   return invalidResponse();
@@ -266,8 +266,8 @@ function parseDeletionChallenge(value: unknown): DeletionChallenge {
       typeof value.message !== "string" || typeof value.issuedAt !== "string" ||
       typeof value.expiresAt !== "string") invalidResponse();
   decodeSeed(value.seed);
-  canonicalTimestamp(value.issuedAt);
-  canonicalTimestamp(value.expiresAt);
+  validateServerTimestamp(value.issuedAt);
+  validateServerTimestamp(value.expiresAt);
   return value as unknown as DeletionChallenge;
 }
 
@@ -279,7 +279,7 @@ function parseDeletionAccepted(value: unknown, seed: string): DeletionAccepted {
       !isRecord(value.deletedBy) || !hasExactKeys(value.deletedBy, ["publicKey"]) ||
       typeof value.deletedBy.publicKey !== "string") invalidResponse();
   validateSigningDescriptor({ publicKey: value.deletedBy.publicKey, signatureScheme: SIGNATURE_SCHEME });
-  canonicalTimestamp(value.deletedAt);
+  validateServerTimestamp(value.deletedAt);
   return value as unknown as DeletionAccepted;
 }
 
@@ -328,6 +328,16 @@ function requireOrigin(value: string, name: string): string {
     throw new ZkbytesError("INVALID_ARGUMENT", `${name} must be an HTTPS origin without a path.`);
   }
   return url.origin;
+}
+
+// Service-generated timestamps may include milliseconds. Signed item expiration
+// continues to use canonicalTimestamp and its whole-second protocol format.
+function validateServerTimestamp(value: string): void {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/u.test(value)) invalidResponse();
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) invalidResponse();
+  const expected = value.includes(".") ? date.toISOString() : date.toISOString().replace(".000Z", "Z");
+  if (value !== expected) invalidResponse();
 }
 
 function invalidResponse(): never {

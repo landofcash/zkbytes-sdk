@@ -9,7 +9,10 @@ export { ZkbytesClient, type ZkbytesClientOptions } from "./client.js";
 export { clearItemKeys, deriveItemKeys, signSeedAndDerive } from "./derivation.js";
 export { decodeBase64, decodeSeed, encodeBase32, encodeBase64 } from "./encoding.js";
 export { ZkbytesApiError, ZkbytesError, type ZkbytesErrorCode } from "./errors.js";
-export { unwrapAesKey, validateX25519PublicKey, wrapAesKey, x25519PublicKeyFromPrivate } from "./hpke.js";
+export {
+  unwrapAesKey, validateX25519PublicKey, wrapAesKey, x25519PublicKeyFromPrivate,
+  sealSeed, openSealedSeed, SEALED_SEED_VERSION, SEALED_SEED_BYTES,
+} from "./hpke.js";
 export {
   canonicalTimestamp,
   createItemSigningMessage,

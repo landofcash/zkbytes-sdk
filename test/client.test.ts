@@ -81,7 +81,7 @@ describe("zkbytes HTTP client", () => {
         seed,
         downloadUrl: `${downloadOrigin}/${seed}`,
         itemSignature: prepared.item.itemSignature,
-        createdAt: "2026-09-20T12:00:00Z",
+        createdAt: "2026-09-21T12:37:03.075Z",
         expiresAt: prepared.item.expiresAt,
       }, 201);
     });
@@ -98,7 +98,7 @@ describe("zkbytes HTTP client", () => {
         return jsonResponse({
           seed,
           state: "active",
-          createdAt: "2026-09-20T12:00:00Z",
+          createdAt: "2026-09-21T12:37:03.075Z",
           expiresAt: prepared.item.expiresAt,
         });
       }
@@ -126,9 +126,18 @@ describe("zkbytes HTTP client", () => {
     });
   });
 
+  it.each(["2026-02-30T12:00:00.075Z", "2026-09-21T12:37:03+00:00", "invalid"])(
+    "rejects invalid server timestamps: %s", async (createdAt) => {
+      const client = createClient(vi.fn(async () => jsonResponse({
+        seed, state: "active", createdAt, expiresAt: prepared.item.expiresAt,
+      })));
+      await expect(client.getStatus(seed)).rejects.toMatchObject({ code: "INVALID_RESPONSE" });
+    },
+  );
+
   it("validates and signs the exact deletion challenge before execution", async () => {
-    const issuedAt = canonicalSecond(new Date(Date.now() - 1_000));
-    const expiresAt = canonicalSecond(new Date(Date.now() + 300_000));
+    const issuedAt = new Date(Date.now() - 1_000).toISOString();
+    const expiresAt = new Date(Date.now() + 300_000).toISOString();
     const challengeId = "f164d41e-bae0-4188-97ad-29b7b9778bfe";
     const message = [
       "zkbytes management v1",
@@ -175,7 +184,7 @@ describe("zkbytes HTTP client", () => {
         seed,
         state: "deleted",
         deletedBy: { publicKey: prepared.item.creator.publicKey },
-        deletedAt: canonicalSecond(new Date()),
+        deletedAt: new Date().toISOString(),
         physicalDeletion: "pending",
       }, 202);
     });
@@ -215,8 +224,4 @@ function jsonResponse(body: unknown, status = 200, headers?: HeadersInit): Respo
     status,
     headers: { "Content-Type": "application/json", ...headers },
   });
-}
-
-function canonicalSecond(value: Date): string {
-  return value.toISOString().replace(/\.\d{3}Z$/u, "Z");
 }

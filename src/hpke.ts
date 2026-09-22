@@ -3,18 +3,75 @@ import canonicalize from "canonicalize";
 import { x25519 } from "@noble/curves/ed25519.js";
 
 import { BYTE_LENGTHS, KEY_DERIVATION_PROFILE, WRAPPING_ALGORITHM } from "./constants.js";
-import { concatenate, decodeBase64, encodeBase64 } from "./encoding.js";
+import { concatenate, decodeBase64, decodeSeed, encodeBase32, encodeBase64 } from "./encoding.js";
 import { ZkbytesError } from "./errors.js";
 import type { EncryptedKeyDescriptor } from "./types.js";
 
 const encoder = new TextEncoder();
 const HPKE_INFO = encoder.encode("zkbytes.hpke.key-wrap.v1");
+const SEALED_SEED_INFO = encoder.encode("zkbytes.hpke.sealed-seed.v3");
+export const SEALED_SEED_VERSION = 3;
+export const SEALED_SEED_BYTES = 65;
 const X25519_PRIME = (1n << 255n) - 19n;
 const suite = new CipherSuite({
   kem: new DhkemX25519HkdfSha256(),
   kdf: new HkdfSha256(),
   aead: new Aes256Gcm(),
 });
+
+/** Encrypt a raw 16-byte seed directly with HPKE. Returns version || enc || ciphertext. */
+export async function sealSeed(seed: string, recipientPublicKeyBase64: string): Promise<Uint8Array> {
+  const plaintext = decodeSeed(seed);
+  try {
+    const publicKey = decodeBase64(recipientPublicKeyBase64, 32);
+    validateX25519PublicKey(publicKey);
+    const sender = await suite.createSenderContext({
+      recipientPublicKey: await suite.kem.deserializePublicKey(publicKey),
+      info: SEALED_SEED_INFO,
+    });
+    const ciphertext = new Uint8Array(await sender.seal(plaintext, sealedSeedAad(publicKey)));
+    const envelope = concatenate(Uint8Array.of(SEALED_SEED_VERSION), new Uint8Array(sender.enc), ciphertext);
+    if (envelope.length !== SEALED_SEED_BYTES) throw new Error("Unexpected envelope length.");
+    return envelope;
+  } catch (error) {
+    throw new ZkbytesError("ENCRYPTION_FAILED", "Seed encryption failed.", { cause: error });
+  } finally {
+    plaintext.fill(0);
+  }
+}
+
+/** Open a compact seed envelope with the selected receiving private key. */
+export async function openSealedSeed(envelope: Uint8Array, recipientPrivateKey: Uint8Array): Promise<string> {
+  if (envelope.length !== SEALED_SEED_BYTES) {
+    throw new ZkbytesError("INVALID_ENCODING", "A sealed seed must contain 65 bytes.");
+  }
+  if (envelope[0] !== SEALED_SEED_VERSION) {
+    throw new ZkbytesError("UNSUPPORTED_PROFILE", "The sealed-seed profile is unsupported.");
+  }
+  if (recipientPrivateKey.length !== BYTE_LENGTHS.x25519PrivateKey) {
+    throw new ZkbytesError("INVALID_ARGUMENT", "An X25519 private key must contain 32 bytes.");
+  }
+  let plaintext: Uint8Array | undefined;
+  try {
+    const publicKey = await x25519PublicKeyFromPrivate(recipientPrivateKey);
+    const recipient = await suite.createRecipientContext({
+      recipientKey: await suite.kem.deserializePrivateKey(recipientPrivateKey),
+      enc: envelope.subarray(1, 33),
+      info: SEALED_SEED_INFO,
+    });
+    plaintext = new Uint8Array(await recipient.open(envelope.subarray(33), sealedSeedAad(publicKey)));
+    if (plaintext.length !== BYTE_LENGTHS.seed) throw new Error("Unexpected seed length.");
+    return encodeBase32(plaintext);
+  } catch (error) {
+    throw new ZkbytesError("DECRYPTION_FAILED", "Seed authentication or decryption failed.", { cause: error });
+  } finally {
+    plaintext?.fill(0);
+  }
+}
+
+function sealedSeedAad(publicKey: Uint8Array): Uint8Array {
+  return concatenate(Uint8Array.of(SEALED_SEED_VERSION), publicKey);
+}
 
 export async function wrapAesKey(
   seed: string,

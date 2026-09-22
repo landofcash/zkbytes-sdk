@@ -143,6 +143,22 @@ try {
 
 ## Development
 
+### Compact encrypted seeds (0.1.4)
+
+`sealSeed(seed, recipientPublicKeyBase64)` encrypts the raw 16-byte seed directly
+using HPKE X25519/HKDF-SHA256/AES-256-GCM. It returns 65 bytes:
+version `3` (1 byte), encapsulation (32 bytes), ciphertext and tag (32 bytes).
+`openSealedSeed(envelope, recipientPrivateKey)` authenticates and returns the
+canonical seed. Both functions are asynchronous. No network requests are made.
+
+The domain is `zkbytes.hpke.sealed-seed.v3`; AAD is the version byte followed by
+the 32-byte recipient public key. This is separate from item-key wrapping.
+The recipient key need not be carried in a link: opening derives it from the
+selected private key. Envelopes do not authenticate the sender or pin a creator.
+Unpadded Base64URL encoding yields 87 characters; URL formatting belongs to the app.
+
+### Commands
+
 ```sh
 pnpm install
 pnpm typecheck
